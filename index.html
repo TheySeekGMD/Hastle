@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hastle – Make and Play</title>
+
+<style>
+    body {
+        margin: 0;
+        background: #000;
+        color: #fff;
+        font-family: Arial, sans-serif;
+        overflow-x: hidden;
+    }
+
+    header {
+        width: 100%;
+        background: #000;
+        border-bottom: 2px solid #fff;
+        padding: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-sizing: border-box;
+        position: fixed;
+        top: 0;
+        z-index: 10;
+    }
+
+    .tab {
+        cursor: pointer;
+        padding: 10px 20px;
+        border: 2px solid #fff;
+        background: #000;
+        margin-left: 10px;
+        outline: none;
+    }
+
+    .tab.active {
+        background: #fff;
+        color: #000;
+    }
+
+    .page {
+        display: none;
+        padding: 90px 20px 20px;
+        box-sizing: border-box;
+    }
+
+    .game-card {
+        border: 2px solid #fff;
+        padding: 15px;
+        margin-bottom: 20px;
+        min-width: 300px;
+        flex-shrink: 0;
+    }
+
+    .games-container {
+        display: flex;
+        overflow-x: auto;
+        gap: 20px;
+        cursor: grab;
+    }
+
+    button, input, textarea {
+        width: 100%;
+        margin-top: 10px;
+        padding: 10px;
+        background: #000;
+        color: #fff;
+        border: 2px solid #fff;
+        box-sizing: border-box;
+        outline: none;
+        -webkit-tap-highlight-color: transparent; /* убираем голубую подсветку на мобильных */
+    }
+
+    iframe {
+        width: 100%;
+        height: 300px;
+        border: 2px solid #fff;
+        margin-top: 10px;
+    }
+
+    .project-card {
+        border: 2px solid #fff;
+        padding: 10px;
+        margin-bottom: 20px;
+    }
+
+    #login-screen {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: #000;
+        color: #fff;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 30px;
+        box-sizing: border-box;
+    }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+    <h2>Регистрация / Вход</h2>
+    <input id="login-name" placeholder="Ваш никнейм">
+    <input id="login-pass" type="password" placeholder="Пароль">
+    <button onclick="registerUser()">Регистрация / Вход</button>
+</div>
+
+<header>
+    <h2>Hastle</h2>
+    <div>
+        <span class="tab active" id="tab-home" onclick="switchTab('home')">Home</span>
+        <span class="tab" id="tab-create" onclick="switchTab('create')">Create</span>
+    </div>
+</header>
+
+<!-- HOME -->
+<div class="page" id="home-page" style="display:block;">
+    <h2>Игры</h2>
+    <div class="games-container" id="games-list"></div>
+</div>
+
+<!-- CREATE -->
+<div class="page" id="create-page">
+    <h2>Ваши проекты</h2>
+
+    <div id="projects-list"></div>
+
+    <h3>Создать новый проект</h3>
+    <input id="project-title" placeholder="Название проекта">
+    <textarea id="project-code" placeholder="Вставьте HTML код игры" style="height:200px;"></textarea>
+    <button onclick="publishProject()">Publish</button>
+</div>
+
+<script>
+const DB = "https://hastle-dc854-default-rtdb.firebaseio.com/";
+let currentUser = null;
+
+function registerUser() {
+    const name = document.getElementById("login-name").value.trim();
+    const pass = document.getElementById("login-pass").value.trim();
+    if (!name || !pass) return alert("Введите ник и пароль");
+
+    fetch(DB + "users/" + name + ".json")
+    .then(res => res.json())
+    .then(data => {
+        if (data) {
+            if (data.password !== pass) return alert("Неверный пароль");
+            currentUser = name;
+            localStorage.setItem("castleUser", name);
+            localStorage.setItem("castlePass", pass);
+            document.getElementById("login-screen").style.display = "none";
+            loadGames();
+            loadProjects();
+        } else {
+            fetch(DB + "users/" + name + ".json", {
+                method: "PUT",
+                body: JSON.stringify({ password: pass, likes: {}, projects: {} })
+            });
+            currentUser = name;
+            localStorage.setItem("castleUser", name);
+            localStorage.setItem("castlePass", pass);
+            document.getElementById("login-screen").style.display = "none";
+            loadGames();
+            loadProjects();
+        }
+    });
+}
+
+if (localStorage.getItem("castleUser") && localStorage.getItem("castlePass")) {
+    currentUser = localStorage.getItem("castleUser");
+    document.getElementById("login-screen").style.display = "none";
+}
+
+function switchTab(tab) {
+    document.getElementById("tab-home").classList.remove("active");
+    document.getElementById("tab-create").classList.remove("active");
+
+    if (tab === "home") {
+        document.getElementById("home-page").style.display = "block";
+        document.getElementById("create-page").style.display = "none";
+        document.getElementById("tab-home").classList.add("active");
+    } else {
+        document.getElementById("home-page").style.display = "none";
+        document.getElementById("create-page").style.display = "block";
+        document.getElementById("tab-create").classList.add("active");
+    }
+}
+
+async function publishProject() {
+    if (!currentUser) return;
+
+    const title = document.getElementById("project-title").value.trim();
+    const code = document.getElementById("project-code").value.trim();
+    if (!title || !code) return;
+
+    const gameData = { title, code, author: currentUser, likes: 0, time: Date.now() };
+
+    await fetch(DB + "games.json", { method: "POST", body: JSON.stringify(gameData) });
+    await fetch(DB + "users/" + currentUser + "/projects.json", { method: "POST", body: JSON.stringify(gameData) });
+
+    document.getElementById("project-title").value = "";
+    document.getElementById("project-code").value = "";
+
+    loadProjects();
+    loadGames();
+}
+
+async function loadGames() {
+    const res = await fetch(DB + "games.json");
+    const data = await res.json();
+    const list = document.getElementById("games-list");
+    list.innerHTML = "";
+
+    if (!data) return;
+
+    const userLikes = await fetch(DB + "users/" + currentUser + "/likes.json").then(r => r.json()) || {};
+
+    Object.entries(data).reverse().forEach(([id, game]) => {
+        const div = document.createElement("div");
+        div.className = "game-card";
+        div.innerHTML = `
+            <h3>${game.title}</h3>
+            <p>Автор: ${game.author}</p>
+            <iframe srcdoc="${game.code.replace(/"/g, '&quot;')}"></iframe>
+            <button onclick="likeGame('${id}', ${game.likes})" ${userLikes[id] ? 'disabled' : ''}>👍 ${game.likes}</button>
+        `;
+        list.appendChild(div);
+    });
+}
+
+async function likeGame(id, likes) {
+    const userLikes = await fetch(DB + "users/" + currentUser + "/likes.json").then(r => r.json()) || {};
+    if (userLikes[id]) return;
+
+    await fetch(DB + "games/" + id + ".json", { method: "PATCH", body: JSON.stringify({ likes: likes + 1 }) });
+
+    userLikes[id] = true;
+    await fetch(DB + "users/" + currentUser + "/likes.json", { method: "PUT", body: JSON.stringify(userLikes) });
+
+    loadGames();
+}
+
+async function loadProjects() {
+    if (!currentUser) return;
+
+    const res = await fetch(DB + "users/" + currentUser + "/projects.json");
+    const data = await res.json();
+    const list = document.getElementById("projects-list");
+    list.innerHTML = "";
+
+    if (!data) return;
+
+    Object.entries(data).reverse().forEach(([id, game]) => {
+        const div = document.createElement("div");
+        div.className = "project-card";
+        div.innerHTML = `<h3>${game.title}</h3><iframe srcdoc="${game.code.replace(/"/g, '&quot;')}"></iframe>`;
+        list.appendChild(div);
+    });
+}
+
+// swipe support for home games
+let startX = 0, scrollLeft = 0;
+const container = document.getElementById("games-list");
+
+container.addEventListener('mousedown', e => {
+    startX = e.pageX - container.offsetLeft;
+    scrollLeft = container.scrollLeft;
+    container.style.cursor = "grabbing";
+});
+container.addEventListener('mouseleave', () => container.style.cursor = "grab");
+container.addEventListener('mouseup', () => container.style.cursor = "grab");
+container.addEventListener('mousemove', e => {
+    if (!startX) return;
+    const x = e.pageX - container.offsetLeft;
+    const walk = (startX - x);
+    container.scrollLeft = scrollLeft + walk;
+});
+container.addEventListener('touchstart', e => {
+    startX = e.touches[0].pageX - container.offsetLeft;
+    scrollLeft = container.scrollLeft;
+});
+container.addEventListener('touchmove', e => {
+    const x = e.touches[0].pageX - container.offsetLeft;
+    const walk = (startX - x);
+    container.scrollLeft = scrollLeft + walk;
+});
+
+if (currentUser) {
+    loadGames();
+    loadProjects();
+}
+</script>
+
+</body>
+</html>
