@@ -28,6 +28,19 @@
         z-index: 10;
     }
 
+    /* 🔥 Анимация переливания Hastle */
+    #logo {
+        font-size: 24px;
+        font-weight: bold;
+        color: yellow;
+        animation: logoGlow 3s infinite alternate ease-in-out;
+    }
+
+    @keyframes logoGlow {
+        0% { color: #FFD700; }
+        100% { color: orange; }
+    }
+
     .tab {
         cursor: pointer;
         padding: 10px 20px;
@@ -72,7 +85,7 @@
         border: 2px solid #fff;
         box-sizing: border-box;
         outline: none;
-        -webkit-tap-highlight-color: transparent; /* убираем голубую подсветку на мобильных */
+        -webkit-tap-highlight-color: transparent;
     }
 
     iframe {
@@ -105,52 +118,57 @@
 <body>
 
 <div id="login-screen">
-    <h2>Регистрация / Вход</h2>
-    <input id="login-name" placeholder="Ваш никнейм">
-    <input id="login-pass" type="password" placeholder="Пароль">
-    <button onclick="registerUser()">Регистрация / Вход</button>
+    <h2>Sign Up / Login</h2>
+    <input id="login-name" placeholder="Username">
+    <input id="login-pass" type="password" placeholder="Password">
+    <button onclick="vib(200); registerUser()">Sign Up / Login</button>
 </div>
 
 <header>
-    <h2>Hastle</h2>
+    <h2 id="logo">Hastle</h2>
     <div>
-        <span class="tab active" id="tab-home" onclick="switchTab('home')">Home</span>
-        <span class="tab" id="tab-create" onclick="switchTab('create')">Create</span>
+        <span class="tab active" id="tab-home" onclick="vib(200); switchTab('home')">Home</span>
+        <span class="tab" id="tab-create" onclick="vib(200); switchTab('create')">Create</span>
     </div>
 </header>
 
 <!-- HOME -->
 <div class="page" id="home-page" style="display:block;">
-    <h2>Игры</h2>
+    <h2>Games</h2>
     <div class="games-container" id="games-list"></div>
 </div>
 
 <!-- CREATE -->
 <div class="page" id="create-page">
-    <h2>Ваши проекты</h2>
+    <h2>Your Projects</h2>
 
     <div id="projects-list"></div>
 
-    <h3>Создать новый проект</h3>
-    <input id="project-title" placeholder="Название проекта">
-    <textarea id="project-code" placeholder="Вставьте HTML код игры" style="height:200px;"></textarea>
-    <button onclick="publishProject()">Publish</button>
+    <h3>Create New Project</h3>
+    <input id="project-title" placeholder="Project title">
+    <textarea id="project-code" placeholder="Paste your HTML game code" style="height:200px;"></textarea>
+    <button onclick="vib(200); publishProject()">Publish</button>
 </div>
 
 <script>
 const DB = "https://hastle-dc854-default-rtdb.firebaseio.com/";
 let currentUser = null;
 
+/* 🔥 Универсальная вибрация */
+function vib(ms) {
+    if (navigator.vibrate) navigator.vibrate(ms);
+}
+
 function registerUser() {
     const name = document.getElementById("login-name").value.trim();
     const pass = document.getElementById("login-pass").value.trim();
-    if (!name || !pass) return alert("Введите ник и пароль");
+    if (!name || !pass) return alert("Enter username and password");
 
     fetch(DB + "users/" + name + ".json")
     .then(res => res.json())
     .then(data => {
         if (data) {
-            if (data.password !== pass) return alert("Неверный пароль");
+            if (data.password !== pass) return alert("Wrong password");
             currentUser = name;
             localStorage.setItem("castleUser", name);
             localStorage.setItem("castlePass", pass);
@@ -226,9 +244,9 @@ async function loadGames() {
         div.className = "game-card";
         div.innerHTML = `
             <h3>${game.title}</h3>
-            <p>Автор: ${game.author}</p>
+            <p>Author: ${game.author}</p>
             <iframe srcdoc="${game.code.replace(/"/g, '&quot;')}"></iframe>
-            <button onclick="likeGame('${id}', ${game.likes})" ${userLikes[id] ? 'disabled' : ''}>👍 ${game.likes}</button>
+            <button onclick="vib(1000); likeGame('${id}', ${game.likes})" ${userLikes[id] ? 'disabled' : ''}>👍 ${game.likes}</button>
         `;
         list.appendChild(div);
     });
@@ -264,7 +282,7 @@ async function loadProjects() {
     });
 }
 
-// swipe support for home games
+// swipe support
 let startX = 0, scrollLeft = 0;
 const container = document.getElementById("games-list");
 
